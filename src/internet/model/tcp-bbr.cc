@@ -619,7 +619,7 @@ TcpBbr::UpdateBtlBw(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSample& rs
 {
     NS_LOG_FUNCTION(this << tcb << rs);
 
-    if (rs.m_deliveryRate == 0)
+    if (rs.m_interval == Seconds(0) || rs.m_deliveryRate <= DataRate(0))
     {
         return;
     }
