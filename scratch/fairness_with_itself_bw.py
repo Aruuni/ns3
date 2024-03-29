@@ -25,26 +25,26 @@ RUNS = [1, 2, 3, 4, 5]
 LOSSES=[0]
 
 
-# MAX_SIMULATIONS = 30
+MAX_SIMULATIONS = 30
 
-# def run_simulation(params):
-#     protocol, mult, delay, bw, delay, mult, protocol, run = params
-#     command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format(DURATION, SECONDFLOWSTART, protocol, protocol, mult, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
-#     subprocess.run(command, shell=True, cwd='../')
+def run_simulation(params):
+    protocol, mult, delay, bw, delay, mult, protocol, run = params
+    command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format(DURATION, SECONDFLOWSTART, protocol, protocol, mult, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
+    subprocess.run(command, shell=True, cwd='../')
 
-# pool = Pool(processes=MAX_SIMULATIONS)
+pool = Pool(processes=MAX_SIMULATIONS)
 
-# params_list = [(protocol, mult, delay, bw, delay, mult, protocol, run)
-#                for protocol in PROTOCOLS
-#                for bw in BWS
-#                for delay in DELAYS
-#                for mult in QMULTS
-#                for run in RUNS]
+params_list = [(protocol, mult, delay, bw, delay, mult, protocol, run)
+               for protocol in PROTOCOLS
+               for bw in BWS
+               for delay in DELAYS
+               for mult in QMULTS
+               for run in RUNS]
 
-# pool.map(run_simulation, params_list)
+pool.map(run_simulation, params_list)
 
-# pool.close()
-# pool.join()
+pool.close()
+pool.join()
 
 for mult in QMULTS:
    data = []

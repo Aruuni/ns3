@@ -14,9 +14,6 @@ plt.rcParams['text.usetex'] = False
 
 EXPERIMENT = "fairness_with_itself_rtt"
 
-DURATION = 300
-SECONDFLOWSTART = 100
-
 PROTOCOLS = ['TcpCubic', 'TcpBbr', 'TcpBbr3']
 BWS = [100]
 DELAYS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -24,11 +21,11 @@ QMULTS = [0.2, 1, 4]
 RUNS = [1, 2, 3, 4, 5]
 LOSSES=[0]
 
-# MAX_SIMULATIONS = 32
+MAX_SIMULATIONS = 25
 
 # def run_simulation(params):
 #     protocol, mult, delay, bw, delay, mult, protocol, run = params
-#     command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format(DURATION, SECONDFLOWSTART, protocol, protocol, mult, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
+#     command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format(delay*4, delay*2, protocol, protocol, mult, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
 #     subprocess.run(command, shell=True, cwd='../')
 
 # pool = Pool(processes=MAX_SIMULATIONS)
@@ -57,19 +54,20 @@ for mult in QMULTS:
               if os.path.exists(PATH + '/'+protocol+'0-goodput.csv') and os.path.exists(PATH + '/'+protocol+'1-goodput.csv'):
                 receiver1_total = pd.read_csv(PATH + '/'+protocol+'0-goodput.csv').reset_index(drop=True)
                 receiver2_total = pd.read_csv(PATH + '/'+protocol+'1-goodput.csv').reset_index(drop=True)
-                
+                end_time = delay*4
+                second_flow = delay*2
 
                 receiver1_total.columns = ['time', 'goodput1']
                 receiver2_total.columns = ['time', 'goodput2']
                 #  receiver1_total[0] = receiver1_total[0].apply(lambda x: int(float(x)))
                 #  receiver2_total[0] = receiver2_total[0].apply(lambda x: int(float(x)))
 
-                receiver1_total = receiver1_total[(receiver1_total['time'] > SECONDFLOWSTART+5) & (receiver1_total['time'] < DURATION-5)]
-                receiver2_total = receiver2_total[(receiver2_total['time'] > SECONDFLOWSTART+5) & (receiver2_total['time'] < DURATION-5)]
+                receiver1_total = receiver1_total[(receiver1_total['time'] > second_flow) & (receiver1_total['time'] < end_time)]
+                receiver2_total = receiver2_total[(receiver2_total['time'] > second_flow) & (receiver2_total['time'] < end_time)]
 
 
-                receiver1 = receiver1_total[receiver1_total['time'] >= DURATION-5].reset_index(drop=True)
-                receiver2 = receiver2_total[receiver2_total['time'] >= DURATION-5].reset_index(drop=True)
+                receiver1 = receiver1_total[receiver1_total['time'] >= end_time].reset_index(drop=True)
+                receiver2 = receiver2_total[receiver2_total['time'] >= end_time].reset_index(drop=True)
 
 
 

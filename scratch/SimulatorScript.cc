@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <unordered_map>
 #include <sys/stat.h>
+#include <cmath>
 
 #define COUT(log) std::cout << log << std::endl;
 
@@ -183,13 +184,17 @@ generatePlot(std::vector<std::vector<std::string>> fileNames, std::string plotTi
 {
     FILE *gnuplotPipe = popen("gnuplot -persist", "w");
     if (gnuplotPipe) {
-        fprintf(gnuplotPipe, "set terminal pdf enhanced color dashed lw 1 font 'DejaVuSans,12'\n");
+        fprintf(gnuplotPipe, "set terminal pdf enhanced color dashed lw 1 font 'DejaVuSans,16' size 8in,2in\n");
+        //fprintf(gnuplotPipe, "set size ratio 0.5, 4\n");
         fprintf(gnuplotPipe, "set style line 81 lt 0\n");
-        fprintf(gnuplotPipe, "set style line 81 lt rgb \"#aaaaaa\"\n");
+        fprintf(gnuplotPipe, "set style line 81 lt rgb \"#000000\"\n");
         fprintf(gnuplotPipe, "set grid back linestyle 81\n");
+        fprintf(gnuplotPipe, "set key left top vertical font 'DejaVuSans,8'\n");
         fprintf(gnuplotPipe, "set border 3 back linestyle 80\n");
-        fprintf(gnuplotPipe, "set xtics nomirror\n");
-        fprintf(gnuplotPipe, "set ytics nomirror\n");
+        fprintf(gnuplotPipe, "set xtics 5 nomirror\n");
+        fprintf(gnuplotPipe, "set ytics auto nomirror\n");
+        fprintf(gnuplotPipe, "set tics font 'DejaVuSans,12'\n");
+        fprintf(gnuplotPipe, "set label font 'DejaVuSans,6'\n");
         fprintf(gnuplotPipe, "set autoscale x\n");
         fprintf(gnuplotPipe, "set autoscale y\n");
         fprintf(gnuplotPipe, "set output \"%s.pdf\"\n", (outPath + plotTitle).c_str());
@@ -197,7 +202,7 @@ generatePlot(std::vector<std::vector<std::string>> fileNames, std::string plotTi
         fprintf(gnuplotPipe, "set xlabel \"Time (sec)\"\n");
         fprintf(gnuplotPipe, "set ylabel \"%s\"\n", plotYLabel.c_str());
         fprintf(gnuplotPipe, "set key right top vertical\n");
-        
+        fprintf(gnuplotPipe, "set object 1 rectangle from graph 0,0 to graph 1,1 behind fillcolor rgb 'white' fillstyle solid border lc rgb 'black'\n");        
         std::string plotCommand = "plot ";
         int j = 0;
         for (const auto&  plot : fileNames ){
@@ -371,19 +376,22 @@ main(
     routers.Create(2);
     
     PointToPointHelper botLink, p2pLinkLeft, p2pLinkRight;
+    // bottleneck link
+    double BDP_IN_BYTES = (bottleneckLinkDataRate * pow(2, 20) * 2 * bottleneckLinkDelay * pow(10, -3)) / 8;
+    int BDP_IN_BYTES_INTEGER = static_cast<int>(BDP_IN_BYTES);
+    int BDP_IN_PACKETS = (BDP_IN_BYTES_INTEGER / packetSize) * bdpMultiplier;
     botLink.SetDeviceAttribute("DataRate", StringValue(std::to_string(bottleneckLinkDataRate) + "Mbps"));
     botLink.SetChannelAttribute("Delay", StringValue(std::to_string(bottleneckLinkDelay) + "ms"));
-    botLink.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(((bottleneckLinkDataRate * 1000) * bottleneckLinkDelay / packetSize) * bdpMultiplier) + "p")));
-    std::cout << "Bottleneck link queue ............. >  " << std::to_string(((bottleneckLinkDataRate * 1000 ) * bottleneckLinkDelay / packetSize) * bdpMultiplier) + "p" << std::endl;
-    std::cout << "Bottleneck link delay ............. >  " << std::to_string(bottleneckLinkDelay) + "ms" << std::endl;
+    botLink.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(BDP_IN_PACKETS) + "p")));
+    std::cout << "Bottleneck link queue ............. >  " << std::to_string(BDP_IN_PACKETS) + "p" << std::endl;
+
     // edge link 
     p2pLinkLeft.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
-    p2pLinkLeft.SetChannelAttribute("Delay", StringValue("0ms"));
-    p2pLinkLeft.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(((bottleneckLinkDataRate * 1000) * bottleneckLinkDelay / packetSize) * bdpMultiplier) + "p")));
+    p2pLinkLeft.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(BDP_IN_PACKETS) + "p")));
 
     p2pLinkRight.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
     p2pLinkRight.SetChannelAttribute("Delay", StringValue("0ms"));
-    p2pLinkRight.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(((bottleneckLinkDataRate * 1000) * bottleneckLinkDelay / packetSize) * bdpMultiplier) + "p")));
+    p2pLinkRight.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize(std::to_string(BDP_IN_PACKETS) + "p")));
     //p2pLinkRight.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(QueueSize("2p")));
 
     NetDeviceContainer routerDevices = botLink.Install(routers);
@@ -425,15 +433,15 @@ main(
     }
 
     TrafficControlHelper tch;
-    //tch.SetRootQueueDisc("ns3::FifoQueueDisc");
+    tch.SetRootQueueDisc("ns3::FifoQueueDisc");
     //tch.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", StringValue ());
-    tch.SetRootQueueDisc("ns3::TbfQueueDisc", 
-        "Burst", UintegerValue(1600), 
-        "Mtu", UintegerValue(packetSize),
-        "Rate", DataRateValue(DataRate(std::to_string(bottleneckLinkDataRate) + "Mbps")), 
-        "PeakRate", DataRateValue(DataRate(0)), 
-        "MaxSize", QueueSizeValue(QueueSize(std::to_string(((bottleneckLinkDataRate * 1000) * bottleneckLinkDelay / packetSize) * 1) + "p"))
-    );
+    // tch.SetRootQueueDisc("ns3::TbfQueueDisc", 
+    //     "Burst", UintegerValue(1600), 
+    //     "Mtu", UintegerValue(packetSize),
+    //     "Rate", DataRateValue(DataRate(std::to_string(bottleneckLinkDataRate) + "Mbps")), 
+    //     "PeakRate", DataRateValue(DataRate(0)), 
+    //     "MaxSize", QueueSizeValue(QueueSize(std::to_string(((bottleneckLinkDataRate * 1000) * bottleneckLinkDelay / packetSize) * 1) + "p"))
+    // );
 
     //tch.SetQueueLimits("ns3::DynamicQueueLimits", "HoldTime", StringValue("1ms"));
     tch.Install(senderDevices);

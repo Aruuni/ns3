@@ -1,0 +1,6 @@
+python3 fairness_with_itself_bw.py
+python3 fairness_with_itself_inter_rtt.py
+python3 fairness_with_itself_rtt.py
+python3 fairness_with_cubic.py
+
+shutdown now

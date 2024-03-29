@@ -18,7 +18,7 @@ DURATION = 200
 SECONDFLOWSTART = 50
 
 PROTOCOLS = ['TcpCubic', 'TcpBbr', 'TcpBbr3']
-BWS = [100]
+BWS = [50]
 DELAYS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 QMULTS = [0.2, 1, 4]
 RUNS = [1, 2, 3, 4, 5]

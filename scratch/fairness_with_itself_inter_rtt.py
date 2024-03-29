@@ -14,8 +14,6 @@ plt.rcParams['text.usetex'] = False
 
 
 EXPERIMENT = "fairness_inter_rtt"
-DURATION = 300
-SECONDFLOWSTART = 100
 PROTOCOLS = ['TcpCubic', 'TcpBbr', 'TcpBbr3']
 BWS = [100]
 DELAYS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
@@ -23,35 +21,35 @@ QMULTS = [0.2,1,4]
 RUNS = [1, 2, 3, 4, 5]
 LOSSES=[0]
 
-MAX_SIMULATIONS = 30
+MAX_SIMULATIONS = 27
 
-# def run_simulation(params):
-#     protocol, mult, delay, bw, delay, mult, protocol, run = params
-#     command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --p2pLinkOffsetDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format(DURATION, SECONDFLOWSTART, protocol, protocol, mult, 10, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
-#     print(command)
-#     subprocess.run(command, shell=True, cwd='../')
+def run_simulation(params):
+    protocol, mult, delay, bw, delay, mult, protocol, run = params
+    command = "./ns3 run --no-build \"scratch/SimulatorScript.cc --stopTime={} --flowStartOffset={} --appendFlow={} --appendFlow2={} --queueBDP={} --botLinkDelay={} --p2pLinkOffsetDelay={} --botLinkDataRate={} --path={}/bw{}/delay{}/qmult{}/flows2/{}/run{} --seed={}\"".format((delay+10)*4, (delay+10), protocol, protocol, mult, 10, delay, bw, EXPERIMENT, bw, delay, mult, protocol, run, run)
+    print(command)
+    subprocess.run(command, shell=True, cwd='../')
 
-# pool = Pool(processes=MAX_SIMULATIONS)
+pool = Pool(processes=MAX_SIMULATIONS)
 
-# params_list = [(protocol, mult, delay, bw, delay, mult, protocol, run)
-#                for protocol in PROTOCOLS
-#                for bw in BWS
-#                for delay in DELAYS
-#                for mult in QMULTS
-#                for run in RUNS]
+params_list = [(protocol, mult, delay, bw, delay, mult, protocol, run)
+               for protocol in PROTOCOLS
+               for bw in BWS
+               for delay in DELAYS
+               for mult in QMULTS
+               for run in RUNS]
 
-# pool.map(run_simulation, params_list)
+pool.map(run_simulation, params_list)
 
-# pool.close()
-# pool.join()
+pool.close()
+pool.join()
 
 for mult in QMULTS:
    data = []
    for protocol in PROTOCOLS:
      for bw in BWS:
         for delay in DELAYS:
-           start_time = delay
-           end_time = 4*delay
+           start_time = (delay + 10)
+           end_time = 4*(delay + 10)
            keep_last_seconds = int(0.25*delay)
 
            BDP_IN_BYTES = int(bw * (2 ** 20) * 2 * delay * (10 ** -3) / 8)
@@ -70,12 +68,12 @@ for mult in QMULTS:
                 receiver2_total.columns = ['time', 'goodput2']
 
 
-                receiver1_total = receiver1_total[(receiver1_total['time'] > SECONDFLOWSTART+5) & (receiver1_total['time'] < DURATION-5)]
-                receiver2_total = receiver2_total[(receiver2_total['time'] > SECONDFLOWSTART+5) & (receiver2_total['time'] < DURATION-5)]
+                receiver1_total = receiver1_total[(receiver1_total['time'] > start_time) & (receiver1_total['time'] < end_time)]
+                receiver2_total = receiver2_total[(receiver2_total['time'] > start_time) & (receiver2_total['time'] < end_time)]
                  
 
-                receiver1 = receiver1_total[receiver1_total['time'] >= DURATION-5].reset_index(drop=True)
-                receiver2 = receiver2_total[receiver2_total['time'] >= DURATION-5].reset_index(drop=True)
+                receiver1 = receiver1_total[receiver1_total['time'] >= end_time].reset_index(drop=True)
+                receiver2 = receiver2_total[receiver2_total['time'] >= end_time].reset_index(drop=True)
                  
                 receiver1_total = receiver1_total.set_index('time')
                 receiver2_total = receiver2_total.set_index('time')
