@@ -246,7 +246,7 @@ TcpBbr3::bbr_inflight(Ptr<TcpSocketState> tcb, DataRate bw, double gain)
     if (m_rtProp == Time::Max())
     {
         return tcb->m_initialCWnd * tcb->m_segmentSize;
-    }
+    }    
     double quanta = 3 * m_sendQuantum;
     double estimatedBdp = bbr_bdp(tcb, bw, gain);
     if (m_state == BbrMode_t::BBR_PROBE_BW && m_cycleIndex == 0)
@@ -630,23 +630,22 @@ TcpBbr3::bbr_update_min_rtt(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSa
 {
     NS_LOG_FUNCTION(this << tcb << rs);
     bool probe_rtt_expired = Simulator::Now() > (m_probeRttMinStamp + bbr_probe_rtt_win);
-    if (tcb->m_minRtt >= Seconds(0) && (tcb->m_minRtt < m_probeRttMin || (probe_rtt_expired /* && rs.is ack delayed*/ ))) // rs in ns3 does not store min rtt anywhere but the tcb object does
+    if (tcb->m_lastRtt >= Seconds(0) && (tcb->m_lastRtt < m_probeRttMin || (probe_rtt_expired /* && rs.is ack delayed*/ ))) // rs in ns3 does not store min rtt anywhere but the tcb object does
     {
-        m_probeRttMin = tcb->m_minRtt;
+        m_probeRttMin = tcb->m_lastRtt;
         m_probeRttMinStamp = Simulator::Now();
     }
 
     bool min_rtt_expired = Simulator::Now() > (m_rtPropStamp + bbr_min_rtt_win_sec); // some confustion around this 
-    if (m_probeRttMin <= tcb->m_lastRtt || min_rtt_expired)
+    if (m_probeRttMin <= m_rtProp || min_rtt_expired)
     {
         m_rtProp = m_probeRttMin;
         m_rtPropStamp = m_probeRttMinStamp;
     }
 
 
-    if (/* a check for the minimum rtt param */probe_rtt_expired && !m_idleRestart  && m_state != BbrMode_t::BBR_PROBE_RTT)
+    if (probe_rtt_expired && !m_idleRestart  && m_state != BbrMode_t::BBR_PROBE_RTT)
     {
-        //std::cout << "triggereing probe rtt at time " << Simulator::Now().GetSeconds() << std::endl;
         m_state = BbrMode_t::BBR_PROBE_RTT;
         bbr_save_cwnd(tcb);
         m_probeRttDoneStamp = Seconds(0); 
@@ -657,7 +656,7 @@ TcpBbr3::bbr_update_min_rtt(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSa
     if (m_state == BbrMode_t::BBR_PROBE_RTT)
     {
         m_appLimited = (m_delivered + tcb->m_bytesInFlight.Get()) > 0 ;
-        if (m_probeRttDoneStamp == Seconds(0) && tcb->m_bytesInFlight <= bbr_probe_rtt_cwnd(tcb) /*bbr_probe_rtt_cwnd(sk) but for now minpipecwnd will do */) 
+        if (m_probeRttDoneStamp == Seconds(0) && tcb->m_bytesInFlight <= bbr_probe_rtt_cwnd(tcb)) 
         {
             m_probeRttDoneStamp = Simulator::Now() + bbr_probe_rtt_mode_ms;
             m_probeRttRoundDone = false;
@@ -671,6 +670,11 @@ TcpBbr3::bbr_update_min_rtt(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSa
                 bbr_check_probe_rtt_done(tcb);
         }
     }
+
+    if (rs.m_delivered > 0)
+        m_idleRestart = false;
+    
+}
 
     if (rs.m_delivered > 0)
         m_idleRestart = false;
